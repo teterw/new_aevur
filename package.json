@@ -11,7 +11,7 @@
   "dependencies": {
     "chart": "^0.1.2",
     "chart.js": "^4.5.1",
-    "next": "16.0.1",
+    "next": "16.0.10",
     "react": "^19.2.0",
     "react-dom": "19.2.0"
   },
