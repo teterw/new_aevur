@@ -5,11 +5,6 @@ import { Chart, registerables } from 'chart.js';
 import Header from './components/Header';
 
 
-const SENSOR_MODE: 'mock' | 'real' = 'mock';
-
-// change to 'real' when Arduino API is ready
-
-
 // Register Chart.js components
 if (typeof window !== 'undefined') {
   Chart.register(...registerables);
@@ -25,6 +20,8 @@ type SensorData = {
 
 export default function AevurDashboard() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [simulationMode, setSimulationMode] = useState(true);
+  const [baselineSet, setBaselineSet] = useState(false);
   const [monitoringActive, setMonitoringActive] = useState(true);
   const [sensorData, setSensorData] = useState<SensorData>({
     readings: { 'MQ-135': 0, 'MQ-138': 0 },
@@ -144,8 +141,30 @@ useEffect(() => {
     if (!monitoringActive) return;
 
     // 🟡 MOCK MODE (no hardware)
-    if (SENSOR_MODE === 'mock') {
-      setSensorData(prev => generateMockData());
+    if (simulationMode) {
+      const mockData = generateMockData();
+      
+      // Check against baseline
+      if (baselineSet) {
+        try {
+          const baselineResponse = await fetch('/api/baseline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'check',
+              mq135: mockData.readings['MQ-135'],
+              mq138: mockData.readings['MQ-138'],
+            })
+          });
+          const baselineCheck = await baselineResponse.json();
+          mockData.alert_status = baselineCheck.alertStatus;
+          mockData.alerts = baselineCheck.alerts;
+        } catch (e) {
+          console.warn('Baseline check failed');
+        }
+      }
+      
+      setSensorData(mockData);
       return;
     }
 
@@ -154,6 +173,27 @@ useEffect(() => {
       const response = await fetch('/api/data');
       if (!response.ok) throw new Error('Sensor offline');
       const data = await response.json();
+      
+      // Check against baseline
+      if (baselineSet) {
+        try {
+          const baselineResponse = await fetch('/api/baseline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'check',
+              mq135: data.readings['MQ-135'],
+              mq138: data.readings['MQ-138'],
+            })
+          });
+          const baselineCheck = await baselineResponse.json();
+          data.alert_status = baselineCheck.alertStatus;
+          data.alerts = baselineCheck.alerts;
+        } catch (e) {
+          console.warn('Baseline check failed');
+        }
+      }
+      
       setSensorData(data);
     } catch (e) {
       console.warn('Sensor API unavailable, switching to safe state');
@@ -164,7 +204,7 @@ useEffect(() => {
   const interval = setInterval(updateData, 1000);
 
   return () => clearInterval(interval);
-}, [monitoringActive]);
+}, [monitoringActive, simulationMode, baselineSet]);
 
 
   // Auto-scroll chat
@@ -174,6 +214,56 @@ useEffect(() => {
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  const toggleSimulationMode = () => {
+    setSimulationMode(prev => !prev);
+  };
+
+  const setBaseline = async () => {
+    try {
+      const response = await fetch('/api/baseline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'set',
+          mq135: sensorData.readings['MQ-135'],
+          mq138: sensorData.readings['MQ-138'],
+          threshold: 0.15,
+        })
+      });
+      const result = await response.json();
+      setBaselineSet(true);
+      setSensorData(prev => ({
+        ...prev,
+        baseline: [result.baseline.mq135 || 0, result.baseline.mq138 || 0]
+      }));
+      alert('Baseline set successfully!');
+    } catch (e) {
+      alert('Error setting baseline');
+      console.error(e);
+    }
+  };
+
+  const resetBaselineHandler = async () => {
+    try {
+      await fetch('/api/baseline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset' })
+      });
+      setBaselineSet(false);
+      setSensorData(prev => ({
+        ...prev,
+        baseline: [0, 0],
+        alert_status: { 'MQ-135': false, 'MQ-138': false },
+        alerts: []
+      }));
+      alert('Baseline reset successfully!');
+    } catch (e) {
+      alert('Error resetting baseline');
+      console.error(e);
+    }
   };
 
   const sendMessage = () => {
@@ -207,16 +297,6 @@ useEffect(() => {
     console.log('Monitoring stopped');
   };
 
-  const resetBaseline = async () => {
-    try {
-      const response = await fetch('/api/reset_baseline', { method: 'POST' });
-      const data = await response.json();
-      console.log('Baseline reset:', data);
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
   const refreshData = async () => {
     try {
       const response = await fetch('/api/clear_history', { method: 'POST' });
@@ -242,15 +322,12 @@ useEffect(() => {
       'MQ-135': mq135,
       'MQ-138': mq138
     },
-    baseline: [0.3, 0.25],
+    baseline: [sensorData.baseline[0], sensorData.baseline[1]],
     alert_status: {
-      'MQ-135': mq135 > 0.75,
-      'MQ-138': mq138 > 0.6
+      'MQ-135': false,
+      'MQ-138': false
     },
-    alerts: [
-      ...(mq135 > 0.75 ? ['High acetone detected (MQ-135)'] : []),
-      ...(mq138 > 0.6 ? ['Abnormal gas pattern (MQ-138)'] : [])
-    ],
+    alerts: [],
     history: [
       ...sensorData.history.slice(-29),
       { 'MQ-135': mq135, 'MQ-138': mq138 }
@@ -269,12 +346,58 @@ return (
     {/* ✅ HEADER COMPONENT */}
     <Header theme={theme} toggleTheme={toggleTheme} />
 
-    {/* ✅ STATUS / WARNING BANNER */}
-    {SENSOR_MODE === 'mock' && (
-      <div className="max-w-[1400px] mx-auto mb-4 p-4 rounded-xl bg-yellow-500/20 border border-yellow-500 text-yellow-300 font-bold">
-        ⚠️ Sensor not connected — running in simulation mode
+    {/* ✅ SIMULATION MODE BANNER & CONTROLS */}
+    <div className="mb-4 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center max-w-[1400px] mx-auto">
+      <div className={`flex-1 rounded-xl p-4 ${
+        simulationMode
+          ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-300'
+          : 'bg-green-500/20 border border-green-500 text-green-300'
+      } font-bold`}>
+        {simulationMode ? '⚠️ Simulation Mode Active' : '✅ Real Sensor Mode Active'}
       </div>
-    )}
+      
+      <button
+        onClick={toggleSimulationMode}
+        className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap ${
+          simulationMode
+            ? 'bg-yellow-500 text-white hover:bg-yellow-600'
+            : 'bg-green-500 text-white hover:bg-green-600'
+        }`}
+      >
+        {simulationMode ? 'Switch to Real' : 'Switch to Simulation'}
+      </button>
+    </div>
+
+    {/* Baseline Controls */}
+    <div className={`mb-6 rounded-xl p-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center max-w-[1400px] mx-auto ${
+      theme === 'dark'
+        ? 'bg-gray-800 border border-gray-600'
+        : 'bg-white border border-gray-300 shadow-md'
+    }`}>
+      <div className="flex-1">
+        <div className="font-bold mb-1">Baseline System</div>
+        <div className="text-sm opacity-70">
+          {baselineSet 
+            ? `Baseline Set - MQ135: ${sensorData.baseline[0].toFixed(3)}, MQ138: ${sensorData.baseline[1].toFixed(3)}`
+            : 'No baseline set. Click "Set Baseline" to begin monitoring.'}
+        </div>
+      </div>
+      <div className="flex gap-2 flex-col sm:flex-row">
+        <button
+          onClick={setBaseline}
+          className="px-6 py-3 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-all whitespace-nowrap"
+        >
+          {baselineSet ? 'Update Baseline' : 'Set Baseline'}
+        </button>
+        <button
+          onClick={resetBaselineHandler}
+          disabled={!baselineSet}
+          className="px-6 py-3 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+        >
+          Reset Baseline
+        </button>
+      </div>
+    </div>
 
     {/* 🔽 EVERYTHING ELSE CONTINUES BELOW */}
 
@@ -412,16 +535,6 @@ return (
             หยุดการตรวจ
           </button>
           
-          <button 
-            onClick={resetBaseline}
-            className={`px-5 py-4 rounded-full font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-              theme === 'dark'
-                ? 'bg-linear-to-br from-gray-600 to-gray-500 text-white'
-                : 'bg-linear-to-br from-white to-gray-200 text-gray-800 shadow-md'
-            }`}
-          >
-            รีเซ็ตค่าพื้นฐาน
-          </button>
           
           <button 
             onClick={refreshData}
