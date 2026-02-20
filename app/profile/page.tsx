@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import Header from '../components/Header';
+import { useApp } from '../components/AppProvider';
+import { t } from '../translations';
 
 export default function PatientProfile() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const { theme, language } = useApp();
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
 
   const patientInfo = {
     id: 'PT-27194',
@@ -47,7 +46,7 @@ export default function PatientProfile() {
         : 'bg-gradient-to-br from-blue-50 to-blue-200 text-gray-800'
     }`}>
       <div className="max-w-[800px] mx-auto p-5">
-        <Header theme={theme} toggleTheme={toggleTheme} />
+        <Header />
         
 
         {/* Patient Card */}
@@ -69,11 +68,11 @@ export default function PatientProfile() {
             />
           </div>
 
-          {/* Patient ID */}
+          {/* Patient ID */}  
           <div className={`text-lg font-bold mb-5 ${
             theme === 'dark' ? 'text-green-500' : 'text-blue-600'
           }`}>
-            รหัสประจำตัว : {patientInfo.id}
+            {t(language,'profile.patientCard.id')} : {patientInfo.id}
           </div>
 
           {/* Edit Button */}
@@ -82,7 +81,7 @@ export default function PatientProfile() {
               ? 'bg-gradient-to-br from-teal-700 to-teal-600 text-white'
               : 'bg-gradient-to-br from-blue-600 to-blue-800 text-white'
           }`}>
-            ✏️ ยืนยันข้อมูลส่วนตัว
+            {t(language,'profile.patientCard.edit')}
           </button>
 
           {/* Patient Information */}
@@ -91,7 +90,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                ชื่อ :
+                {t(language,'profile.patientCard.name')} :
               </div>
               <div className="pl-2.5">{patientInfo.name}</div>
             </div>
@@ -100,7 +99,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                ชื่อภาษาอังกฤษ :
+                {t(language,'profile.patientCard.englishName')} :
               </div>
               <div className="pl-2.5">{patientInfo.englishName}</div>
             </div>
@@ -109,7 +108,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                ชื่อเล่น :
+                {t(language,'profile.patientCard.nickname')} :
               </div>
               <div className="pl-2.5">{patientInfo.nickname}</div>
             </div>
@@ -118,7 +117,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                อายุ :
+                {t(language,'profile.patientCard.age')} :
               </div>
               <div className="pl-2.5">{patientInfo.age}</div>
             </div>
@@ -127,7 +126,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                กลุ่มเลือด :
+                {t(language,'profile.patientCard.blood')} :
               </div>
               <div className="pl-2.5">{patientInfo.bloodType}</div>
             </div>
@@ -136,7 +135,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                เบอร์โทรศัพท์ :
+                {t(language,'profile.patientCard.phone')} :
               </div>
               <div className="pl-2.5">{patientInfo.phone}</div>
             </div>
@@ -145,7 +144,7 @@ export default function PatientProfile() {
               <div className={`font-bold mb-1 ${
                 theme === 'dark' ? 'text-blue-400' : 'text-blue-600'
               }`}>
-                ที่อยู่ :
+                {t(language,'profile.patientCard.address')} :
               </div>
               <div className="pl-2.5">{patientInfo.address}</div>
             </div>
@@ -159,7 +158,7 @@ export default function PatientProfile() {
             : 'bg-gradient-to-br from-white to-gray-50 border border-gray-300 shadow-lg'
         }`}>
           <div className="text-xl font-bold mb-5 text-center">
-            ประวัติการรักษา
+            {t(language,'profile.recordsTitle')}
           </div>
 
           {medicalRecords.map((record, index) => (

@@ -2,14 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useApp } from './AppProvider';
+import { t } from '../translations';
 
-type HeaderProps = {
-  theme: 'dark' | 'light';
-  toggleTheme: () => void;
-};
-
-export default function Header({ theme, toggleTheme }: HeaderProps) {
+export default function Header() {
   const pathname = usePathname() || '';
+  const {
+    theme,
+    toggleTheme,
+    language,
+    toggleLanguage,
+    simulationMode,
+    toggleSimulationMode,
+  } = useApp();
 
   const navBase =
     'px-5 py-2 rounded-full font-medium transition-all duration-300 hover:-translate-y-0.5';
@@ -34,28 +39,54 @@ export default function Header({ theme, toggleTheme }: HeaderProps) {
     >
       <div className="flex gap-5 items-center flex-wrap">
         <Link href="/dashboard" className={activeClass('/dashboard')}>
-          Dashboard
+          {t(language, 'nav.dashboard')}
         </Link>
 
         <Link href="/" className={activeClass('/docter')}>
-          หมอ
+          {t(language, 'nav.doctor')}
         </Link>
 
         <Link href="/profile" className={activeClass('/profile')}>
-          โปรไฟล์ หน้าผู้ใช้
+          {t(language, 'nav.profile')}
         </Link>
       </div>
 
-      <button
-        onClick={toggleTheme}
-        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-          theme === 'dark'
-            ? 'bg-gradient-to-br from-gray-600 to-gray-500 text-white'
-            : 'bg-gradient-to-br from-blue-600 to-blue-800 text-white'
-        }`}
-      >
-        {theme === 'dark' ? '🌙 Dark' : '☀️ Light'}
-      </button>
+      <div className="flex gap-2 items-center">
+        {/* mode icon */}
+        <button
+          title={
+            simulationMode
+              ? t(language, 'simulation.active')
+              : t(language, 'simulation.real')
+          }
+          onClick={toggleSimulationMode}
+          className="text-xl"
+        >
+          {simulationMode ? '🧪' : '🔌'}
+        </button>
+
+        {/* language toggle */}
+        <button
+          onClick={toggleLanguage}
+          className="px-3 py-1 rounded-full text-sm font-medium transition-all duration-200 border"
+        >
+          {t(language, 'languageToggle')}
+        </button>
+
+        {/* theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+            theme === 'dark'
+              ? 'bg-gradient-to-br from-gray-600 to-gray-500 text-white'
+              : 'bg-gradient-to-br from-blue-600 to-blue-800 text-white'
+          }`}
+        >
+          {theme === 'dark'
+            ? t(language, 'theme.dark')
+            : t(language, 'theme.light')}
+        </button>
+      </div>
     </div>
   );
 }

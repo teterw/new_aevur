@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import Header from './components/Header';
+import { useApp } from './components/AppProvider';
+import { t } from './translations';
 
 
 // Register Chart.js components
@@ -19,8 +21,7 @@ type SensorData = {
 };
 
 export default function AevurDashboard() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [simulationMode, setSimulationMode] = useState(true);
+  const { theme, language, simulationMode } = useApp();
   const [baselineSet, setBaselineSet] = useState(false);
   const [monitoringActive, setMonitoringActive] = useState(true);
   const [sensorData, setSensorData] = useState<SensorData>({
@@ -31,7 +32,7 @@ export default function AevurDashboard() {
     history: []
   });
   const [messages, setMessages] = useState([
-    { text: 'AI Assistant ready to help with health analysis...', type: 'system' }
+    { text: t(language,'ai.systemWelcome'), type: 'system' }
   ]);
   const [inputValue, setInputValue] = useState('');
   
@@ -212,13 +213,6 @@ useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
-  const toggleSimulationMode = () => {
-    setSimulationMode(prev => !prev);
-  };
 
   const setBaseline = async () => {
     try {
@@ -344,29 +338,8 @@ return (
   }`}>
 
     {/* ✅ HEADER COMPONENT */}
-    <Header theme={theme} toggleTheme={toggleTheme} />
+<Header />
 
-    {/* ✅ SIMULATION MODE BANNER & CONTROLS */}
-    <div className="mb-4 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center max-w-[1400px] mx-auto">
-      <div className={`flex-1 rounded-xl p-4 ${
-        simulationMode
-          ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-300'
-          : 'bg-green-500/20 border border-green-500 text-green-300'
-      } font-bold`}>
-        {simulationMode ? '⚠️ Simulation Mode Active' : '✅ Real Sensor Mode Active'}
-      </div>
-      
-      <button
-        onClick={toggleSimulationMode}
-        className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap ${
-          simulationMode
-            ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-            : 'bg-green-500 text-white hover:bg-green-600'
-        }`}
-      >
-        {simulationMode ? 'Switch to Real' : 'Switch to Simulation'}
-      </button>
-    </div>
 
     {/* Baseline Controls */}
     <div className={`mb-6 rounded-xl p-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center max-w-[1400px] mx-auto ${
@@ -375,11 +348,11 @@ return (
         : 'bg-white border border-gray-300 shadow-md'
     }`}>
       <div className="flex-1">
-        <div className="font-bold mb-1">Baseline System</div>
+        <div className="font-bold mb-1">{t(language,'baseline.title')}</div>
         <div className="text-sm opacity-70">
-          {baselineSet 
-            ? `Baseline Set - MQ135: ${sensorData.baseline[0].toFixed(3)}, MQ138: ${sensorData.baseline[1].toFixed(3)}`
-            : 'No baseline set. Click "Set Baseline" to begin monitoring.'}
+          {baselineSet
+            ? t(language,'baseline.setInfo',sensorData.baseline[0],sensorData.baseline[1])
+            : t(language,'baseline.noSet')}
         </div>
       </div>
       <div className="flex gap-2 flex-col sm:flex-row">
@@ -387,14 +360,14 @@ return (
           onClick={setBaseline}
           className="px-6 py-3 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-all whitespace-nowrap"
         >
-          {baselineSet ? 'Update Baseline' : 'Set Baseline'}
+          {baselineSet ? t(language,'baseline.updateBtn') : t(language,'baseline.setBtn')}
         </button>
         <button
           onClick={resetBaselineHandler}
           disabled={!baselineSet}
           className="px-6 py-3 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
-          Reset Baseline
+          {t(language,'baseline.resetBtn')}
         </button>
       </div>
     </div>
@@ -413,7 +386,7 @@ return (
           }`}>
             🔬
           </div>
-          <div className="text-2xl font-bold">Aevur Dashboard</div>
+          <div className="text-2xl font-bold">{t(language,'main.dashboardTitle')}</div>
         </div>
 
         {/* Sensor Section */}
@@ -424,14 +397,14 @@ return (
               ? 'bg-linear-to-br from-gray-700 to-gray-600 border border-gray-500'
               : 'bg-linear-to-br from-white to-gray-50 border border-gray-300 shadow-lg'
           } ${sensorData.alert_status['MQ-135'] ? 'border-red-500 shadow-red-500/30 shadow-xl' : ''}`}>
-            <div className="text-lg font-bold mb-2">โรคเบาหวาน</div>
+            <div className="text-lg font-bold mb-2">{t(language,'main.sensorDiabetes')}</div>
             <div className={`text-2xl font-bold mb-1 ${
               sensorData.alert_status['MQ-135'] ? 'text-red-500' : 'text-green-500'
             }`}>
               {sensorData.readings['MQ-135'].toFixed(3)}
             </div>
             <div className="text-xs opacity-70">
-              Baseline: {sensorData.baseline[0].toFixed(3)}
+              {t(language,'baseline.title')}: {sensorData.baseline[0].toFixed(3)}
             </div>
           </div>
 
@@ -441,7 +414,7 @@ return (
               ? 'bg-linear-to-br from-gray-700 to-gray-600 border border-gray-500'
               : 'bg-linear-to-br from-white to-gray-50 border border-gray-300 shadow-lg'
           } ${sensorData.alert_status['MQ-138'] ? 'border-red-500 shadow-red-500/30 shadow-xl' : ''}`}>
-            <div className="text-lg font-bold mb-2">โรคไตวาย</div>
+            <div className="text-lg font-bold mb-2">{t(language,'main.sensorKidney')}</div>
             <div className={`text-2xl font-bold mb-1 ${
               sensorData.alert_status['MQ-138'] ? 'text-red-500' : 'text-green-500'
             }`}>

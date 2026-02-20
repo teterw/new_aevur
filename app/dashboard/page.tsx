@@ -2,10 +2,11 @@
 
 import { useState, useEffect, type KeyboardEvent } from 'react';
 import Header from '../components/Header';
+import { useApp } from '../components/AppProvider';
+import { t } from '../translations';
 
 export default function AevurAnalysis() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [simulationMode, setSimulationMode] = useState(true);
+  const { theme, language, simulationMode } = useApp();
   const [baselineSet, setBaselineSet] = useState(false);
   const [sensorData, setSensorData] = useState<{
     readings: { 'MQ-135': number; 'MQ-138': number };
@@ -21,7 +22,7 @@ export default function AevurAnalysis() {
     history: []
   });
   const [aiInput, setAiInput] = useState('');
-  const [aiOutput, setAiOutput] = useState('คำตอบจาก AI จะแสดงที่นี่...');
+  const [aiOutput, setAiOutput] = useState(t(language,'ai.placeholder'));
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch data periodically
@@ -93,13 +94,6 @@ export default function AevurAnalysis() {
     return () => clearInterval(interval);
   }, [simulationMode, baselineSet]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
-  const toggleSimulationMode = () => {
-    setSimulationMode(prev => !prev);
-  };
 
   const setBaseline = async () => {
     try {
@@ -119,9 +113,9 @@ export default function AevurAnalysis() {
         ...prev,
         baseline: [result.baseline.mq135 || 0, result.baseline.mq138 || 0]
       }));
-      alert('Baseline set successfully!');
+      alert(t(language,'baseline.setInfo', result.baseline.mq135 || 0, result.baseline.mq138 || 0));
     } catch (e) {
-      alert('Error setting baseline');
+      alert('Error setting baseline'); // keep english for now
       console.error(e);
     }
   };
@@ -151,12 +145,12 @@ export default function AevurAnalysis() {
     const text = aiInput.trim();
     
     if (!text) {
-      setAiOutput("โปรดพิมพ์คำถามของคุณ");
+      setAiOutput(t(language, 'ai.noQuestion'));
       return;
     }
     
     setIsProcessing(true);
-    setAiOutput("กำลังประมวลผล...");
+setAiOutput(t(language, 'ai.processing'));
     
     try {
       const res = await fetch("/ask", {
@@ -165,9 +159,9 @@ export default function AevurAnalysis() {
         body: JSON.stringify({ question: text })
       });
       const data = await res.json();
-      setAiOutput(data.answer || "ไม่ได้รับคำตอบจาก AI");
+      setAiOutput(data.answer || t(language, 'ai.error'));
     } catch (err) {
-      setAiOutput("เกิดข้อผิดพลาดในการติดต่อ AI");
+      setAiOutput(t(language, 'ai.error'));
     } finally {
       setIsProcessing(false);
     }
@@ -205,13 +199,13 @@ export default function AevurAnalysis() {
   const diseaseCards: { id: string; disease: string; img: string; sensor: 'MQ-135' | 'MQ-138' }[] = [
     {
       id: "mq138",
-      disease: "ความเสี่ยงเบาหวานจาก MQ-138",
+      disease: t(language, 'disease.mq138'),
       img: "https://bz49dmux6d.ufs.sh/f/1Q7cAF0oN6JTLqYK7j5kX0SfouG3gHjNi7P1CsqceVOvn68A",
       sensor: "MQ-138",
     },
     {
       id: "mq135",
-      disease: "ความเสี่ยงเบาหวาน on Mq-135",
+      disease: t(language, 'disease.mq135'),
       img: "https://bz49dmux6d.ufs.sh/f/1Q7cAF0oN6JTml6DJ2HxG6E3TILBoXrtsVONDbQPY0Kinl1F",
       sensor: "MQ-135",
     }
@@ -224,30 +218,8 @@ export default function AevurAnalysis() {
         : 'bg-gradient-to-br from-blue-50 to-blue-200 text-gray-800'
     }`}>
       <div className="max-w-[1400px] mx-auto p-5">
-        {/* Header */}
-        <Header theme={theme} toggleTheme={toggleTheme} />
-
-        {/* ✅ SIMULATION MODE BANNER & CONTROLS */}
-        <div className="mb-4 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-          <div className={`flex-1 rounded-xl p-4 ${
-            simulationMode
-              ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-300'
-              : 'bg-green-500/20 border border-green-500 text-green-300'
-          } font-bold`}>
-            {simulationMode ? '⚠️ Simulation Mode Active' : '✅ Real Sensor Mode Active'}
-          </div>
-          
-          <button
-            onClick={toggleSimulationMode}
-            className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap ${
-              simulationMode
-                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                : 'bg-green-500 text-white hover:bg-green-600'
-            }`}
-          >
-            {simulationMode ? 'Switch to Real' : 'Switch to Simulation'}
-          </button>
-        </div>
+        {/* Header will handle theme and mode toggles */}
+        <Header />
 
         {/* Baseline Controls */}
         <div className={`mb-6 rounded-xl p-6 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center ${
@@ -256,11 +228,11 @@ export default function AevurAnalysis() {
             : 'bg-white border border-gray-300 shadow-md'
         }`}>
           <div className="flex-1">
-            <div className="font-bold mb-1">Baseline System</div>
+            <div className="font-bold mb-1">{t(language,'baseline.title')}</div>
             <div className="text-sm opacity-70">
-              {baselineSet 
-                ? `Baseline Set - MQ135: ${sensorData.baseline[0].toFixed(3)}, MQ138: ${sensorData.baseline[1].toFixed(3)}`
-                : 'No baseline set. Click "Set Baseline" to begin monitoring.'}
+              {baselineSet
+                ? t(language,'baseline.setInfo',sensorData.baseline[0],sensorData.baseline[1])
+                : t(language,'baseline.noSet')}
             </div>
           </div>
           <div className="flex gap-2 flex-col sm:flex-row">
@@ -288,10 +260,10 @@ export default function AevurAnalysis() {
             : 'bg-gradient-to-br from-white to-gray-50 border-2 border-blue-600 shadow-lg'
         }`}>
           <h1 className="text-3xl font-medium mb-4">
-            เช็กสุขภาพล่วงหน้า เพื่อชีวิตที่ยืนยาว
+            {t(language,'hero.title')}
           </h1>
           <p className="text-lg opacity-80">
-            Aevur วิเคราะห์ความเสี่ยงของโรคจากข้อมูลสุขภาพของคุณ เพื่อช่วยป้องกันก่อนสายเกินไป
+            {t(language,'hero.subtitle')}
           </p>
         </div>
 
@@ -302,10 +274,10 @@ export default function AevurAnalysis() {
             : 'bg-gradient-to-br from-white to-gray-50 border border-gray-300 shadow-lg'
         }`}>
           <div className="text-2xl font-bold mb-2 text-center">
-            ผลการวิเคราะห์สำหรับคุณ
+            {t(language,'results.title')}
           </div>
           <div className="text-center opacity-70 mb-6">
-            Health insights
+            {t(language,'results.subtitle')}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
